@@ -43,16 +43,11 @@ const useCanvas = (
         fillColor: string,
         borderColor: string = "black"
     ) => {
-        // Fill the square first
         ctx.fillStyle = fillColor;
         ctx.fillRect(x, y, size, size);
-
-        // Draw the border for the square
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 2; // Standard border width
-        ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1); // Stroke within bounds to avoid clipping
-
-        // Draw the text in the center of the square
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x + 0.5, y + 0.5, size - 1, size - 1);
         ctx.fillStyle = "black";
         ctx.font = "20px Arial";
         ctx.textAlign = "center";
@@ -61,36 +56,43 @@ const useCanvas = (
     };
 
     useEffect(() => {
+        if (!canvasRef.current) return; // Ensure the canvas is available and component has mounted
         const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        const ctx = canvas.getContext("2d") as CanvasContext;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const word1WithUnderscore = "_" + word1;
         const word2WithUnderscore = "_" + word2;
 
-        const gridWidth = word1WithUnderscore.length * squareSize;
-        const gridHeight = word2WithUnderscore.length * squareSize;
-
-        // Calculate the starting point to center the grid
-        const startX = (canvas.width - gridWidth) / 2;
-        const startY = (canvas.height - gridHeight) / 2;
-
         const distances = wagnerFischer(word1, word2);
 
-        // Draw grid and fill squares
+        // Draw the top row with word1 characters
         for (let i = 0; i < word1WithUnderscore.length; i++) {
-            for (let j = 0; j < word2WithUnderscore.length; j++) {
-                const x = startX + i * squareSize;
-                const y = startY + j * squareSize;
+            const x = (i + 1) * squareSize; // Offset by +1 for correct positioning
+            const y = 0; // Top row
+            const letter = i === 0 ? "" : word1[i - 1]; // First cell is empty
+            drawSquare(ctx, x, y, squareSize, letter, "lightgray", "black");
+        }
+
+        // Draw the left column with word2 characters
+        for (let j = 0; j < word2WithUnderscore.length; j++) {
+            const x = 0; // Leftmost column
+            const y = (j + 1) * squareSize; // Correct offset here
+            const letter = j === 0 ? "" : word2[j - 1]; // First cell is empty
+            drawSquare(ctx, x, y, squareSize, letter, "lightgray", "black");
+        }
+
+        // Draw the rest of the grid with distances, starting from (1, 1)
+        for (let i = 0; i < word1.length + 1; i++) {
+            for (let j = 0; j < word2.length + 1; j++) {
+                const x = (i + 1) * squareSize; // Offset by 1 to account for the labels
+                const y = (j + 1) * squareSize; // Offset by 1 to account for the labels
+
                 const fillColor =
-                    i === word1WithUnderscore.length - 1 &&
-                    j === word2WithUnderscore.length - 1
+                    i === word1.length && j === word2.length
                         ? "#4CAF50"
                         : "white";
-
-                // Draw the selected cell with a blue border
                 const borderColor =
                     selectedCell &&
                     selectedCell.row === j &&
@@ -110,49 +112,23 @@ const useCanvas = (
             }
         }
 
-        // Draw word1 and word2 characters on the top and left
-        for (let i = 0; i < word1WithUnderscore.length; i++) {
-            const x = startX + i * squareSize;
-            drawSquare(
-                ctx,
-                x,
-                startY - squareSize,
-                squareSize,
-                word1WithUnderscore.charAt(i),
-                "#808080"
-            );
-        }
+        setSelectedCell({ row: 0, col: 0 });
 
-        for (let j = 0; j < word2WithUnderscore.length; j++) {
-            const y = startY + j * squareSize;
-            drawSquare(
-                ctx,
-                startX - squareSize,
-                y,
-                squareSize,
-                word2WithUnderscore.charAt(j),
-                "#808080"
-            );
-        }
-
-        // Add event listener for click
         const handleClick = (event: MouseEvent) => {
             const rect = canvas.getBoundingClientRect();
             const x = event.clientX - rect.left;
             const y = event.clientY - rect.top;
 
-            const col = Math.floor((x - startX) / squareSize);
-            const row = Math.floor((y - startY) / squareSize);
+            const col = Math.floor(x / squareSize) - 1; // Adjust for offset
+            const row = Math.floor(y / squareSize) - 1; // Adjust for offset
 
             if (
                 row >= 0 &&
-                row < word2WithUnderscore.length &&
+                row < word2.length + 1 &&
                 col >= 0 &&
-                col < word1WithUnderscore.length
+                col < word1.length + 1
             ) {
                 setSelectedCell({ row, col });
-
-                // Calculate explanation for the selected cell
                 const current = distances[row][col];
                 const add = row > 0 ? distances[row - 1][col] + 1 : "∞";
                 const del = col > 0 ? distances[row][col - 1] + 1 : "∞";
@@ -161,21 +137,12 @@ const useCanvas = (
                         ? distances[row - 1][col - 1] +
                           (word1[col - 1] !== word2[row - 1] ? 1 : 0)
                         : "∞";
-
-                // Determine which operation was chosen by min()
-                const explanation = `
-                    Cell (${row}, ${col}): 
-                    - Add (top): ${add}
-                    - Delete (left): ${del}
-                    - Change (top-left): ${change}
-                             -> min(${add}, ${del}, ${change}) = ${current}
-                `;
+                const explanation = `Cell (${row}, ${col}): \n- Add (top): ${add} \n- Delete (left): ${del} \n- Substitute (top-left): ${change} \n-> min(${add}, ${del}, ${change}) = ${current}`;
                 setExplanation(explanation.trim());
             }
         };
 
         canvas.addEventListener("click", handleClick);
-
         return () => {
             canvas.removeEventListener("click", handleClick);
         };

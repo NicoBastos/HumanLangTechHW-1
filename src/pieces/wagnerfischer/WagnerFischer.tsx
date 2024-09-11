@@ -6,15 +6,15 @@ const WagnerFischer: React.FC = () => {
     const [word2, setWord2] = useState<string>("");
 
     return (
-        <div className="flex flex-col items-center min-h-screen bg-gray-50 p-6">
+        <div className="flex flex-col items-center justify-start flex-grow w-full p-6">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">
                 Wagner–Fischer Algorithm
             </h2>
-            <p className="text-lg text-gray-600 mb-8">
+            <p className="text-lg text-gray-600 mb-4">
                 Enter two words to compute their edit distance.
             </p>
 
-            <div className="flex space-x-4 mb-6">
+            <div className="flex space-x-4 mb-4">
                 <input
                     type="text"
                     value={word1}
@@ -31,8 +31,10 @@ const WagnerFischer: React.FC = () => {
                 />
             </div>
 
-            {/* Render the CanvasGrid component with the two input words */}
-            <CanvasGrid word1={word1} word2={word2} />
+            {/* Wrap CanvasGrid in a container with overflow-auto to manage scroll */}
+            <div className="flex-grow w-full max-w-4xl flex justify-center items-start overflow-auto">
+                <CanvasGrid word1={word1} word2={word2} />
+            </div>
         </div>
     );
 };
